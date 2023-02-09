@@ -1,0 +1,19 @@
+[project]
+name = "py-aws-vault-auth"
+version = "0.0.1"
+authors = [
+  { name="Achim Gädke"},
+]
+description = "Python Wrapper around the `aws-vault` command"
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/achimgaedke/py-aws-vault-auth"
+"Bug Tracker" = "https://github.com/achimgaedke/py-aws-vault-auth/issues"
