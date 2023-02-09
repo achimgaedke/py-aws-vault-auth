@@ -15,6 +15,10 @@ def stderr_message(message):
 
 
 def to_boto_auth(aws_vault_credentials):
+    """
+    Convert the return value of `authenticate(..., return_as=None)` to
+    `boto3.Client` parameter values.
+    """
     return {
         "aws_access_key_id" : aws_vault_credentials["AccessKeyId"],
         "aws_secret_access_key" : aws_vault_credentials["SecretAccessKey"],
@@ -23,7 +27,11 @@ def to_boto_auth(aws_vault_credentials):
 
 
 def to_s3fs_auth(aws_vault_credentials):
-        return {
+    """
+    Convert the return value of `authenticate(..., return_as=None)` to
+    `s3fs.S3Filesystem` parameter values.
+    """
+    return {
         "key" : aws_vault_credentials["AccessKeyId"],
         "secret" : aws_vault_credentials["SecretAccessKey"],
         "token" : aws_vault_credentials["SessionToken"]        
@@ -47,8 +55,12 @@ def authenticate(profile,
     This function adds the prompt method `python` to loop any dialgoues through
     and uses the `terminal` under the hood.
     
-    The authentication is returned as dictionary and not set as environment,
-    so multiple profiles can be used easily within one python process.
+    The authentication is returned as dictionary (i.e. not set as environment
+    variables) so multiple profiles can be used easily within one python process.
+
+    Use `return_as` to get parameters immediately usable with boto, pandas or
+    use the convenience functions `to_boto_auth` and `to_s3fs_auth` to
+    convert the original `aws-vault` credential values.
 
     :param profile: The name of the AWS profile
     :type profile: str
