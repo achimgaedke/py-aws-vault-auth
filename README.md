@@ -5,8 +5,8 @@ This is **not** an interface to the AWS (glacier) vault.
 
 ## Introduction
 
-Authenticate for AWS services using `aws-vault` within a python jupyter
-notebook session:
+(Re)-Authenticate for AWS services using `aws-vault` within a python session
+(e.g jupyter notebooks):
 
 ```python3
 import py_aws_vault_auth
@@ -17,11 +17,11 @@ c = boto3.client("s3", **boto_auth)
 c.list_objects_v2(Bucket="your-bucket")
 ```
 
-This looks in a Jupyterlab notebook like this
+In a Jupyterlab notebook this looks like this
 
 ![py_aws_vault_auth dialogue in Jupyterlab notebook](doc/MFA_JupyterLabNotebook.png)
 
-or in a VSCode notebook like this
+or in a VSCode notebook
 
 ![py_aws_vault_auth dialogue in VSCode notebook](doc/MFA_VSCodeNotebook.png)
 
@@ -110,20 +110,21 @@ interactive context different from a terminal, e.g. jupyter notebook.
 
 This project does:
 
+* help with AWS authentication with `aws-vault` mid-session, i.e.
 * make it easy for data-scientists to avoid copying credentials into a notebook
-* avoid starting jupyterlab with `aws-vault exec XXX -- jupyter lab` (or VSCode...)
-* return the context as directly usable with popular data-science tools
+* avoid starting jupyter with `aws-vault exec XXX -- jupyter lab` (or VSCode...)
+* return the AWS credentials directly usable with popular data-science tools
 * request the MFA token via python's input context, i.e. the `input` built-in function
 * aims to work in Linux/MacOS (and hopefully MS Windows) wo extra dependencies and
-  a variety of python3 versions
+  supportin a variety of python3 versions
 
 If you prefer another window poping up somewhere, you can use `prompt="osascript"`
 (with MacOS) or similar. This won't use python's `input` function.
 
 This project does **not**:
 
-* uses all features of `aws-vault`
-* capture the input dialogues for various key chain/password managers
+* use all features of `aws-vault`
+* capture the input dialogues for various key-chain/password managers
 
 To avoid too many password manager input dialogues, have a look at [the
 `aws-vault` documentation](https://github.com/99designs/aws-vault/blob/master/USAGE.md#backends).
