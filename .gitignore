@@ -1,3 +1,4 @@
 build/
 *.egg-info/
 __cache__
+.vscode/

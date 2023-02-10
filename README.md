@@ -1,9 +1,12 @@
 # py-aws-vault-auth
 
-This is a wrapper for the [`aws-vault` command](https://github.com/99designs/aws-vault)<br/>
+This is a wrapper for the [`aws-vault` command](https://github.com/99designs/aws-vault).<br/>
 This is **not** an interface to the AWS (glacier) vault.
 
 ## Introduction
+
+Authenticate for AWS services using `aws-vault` within a python jupyter
+notebook session:
 
 ```python3
 import py_aws_vault_auth
@@ -14,7 +17,7 @@ c = boto3.client("s3", **boto_auth)
 c.list_objects_v2(Bucket="your-bucket")
 ```
 
-Looks in a Jupyterlab notebook like this
+This looks in a Jupyterlab notebook like this
 
 ![py_aws_vault_auth dialogue in Jupyterlab notebook](doc/MFA_JupyterLabNotebook.png)
 
@@ -58,6 +61,14 @@ pandas.read_csv("s3://my-bucket/my_file",
 )
 ```
 
+Just add the credentials to the environment:
+
+```python3
+environ_auth = py_aws_vault_auth.authenticate("DataScience", return_as="environ")
+import os
+os.environ.update(environ_auth)
+```
+
 ## Credentials Handling
 
 Without specifying `return_as` the function `authenticate` returns directly
@@ -71,13 +82,13 @@ what `aws-vault exec --json` produces as a python `dict`.
  'Expiration': '2023-02-09T23:18:32Z'}
  ```
 
-Conveniently that contains also the `Expiration` time. With python>=3.11
+Conveniently that contains also the `Expiration` time. With `python>=3.11`
 the expiration time can be parsed with `datetime.datetime.fromisoformat`,
 otherwise use `dateutil.parser.isoparse`.
 
-The functions `to_boto_auth` and `to_s3fs_auth` create the boto and s3fs
-authentication parameters. These can be imported from `py_aws_vault_auth`
-in order to use the same credentials for boto and s3fs:
+The functions `to_boto_auth`, `to_environ_auth` and `to_s3fs_auth` create the
+relevant authentication parameters. These can be imported from `py_aws_vault_auth`
+in order to use the same credentials for `boto` and `s3fs`, e.g.
 
 ```python3
 ds_credentials = py_aws_vault_auth.authenticate("DataScience")
@@ -89,7 +100,7 @@ athena_client = boto3.client("athena", **to_boto_auth(ds_credentials))
 No dependencies, just `python3`... and of course [`aws-vault`](https://github.com/99designs/aws-vault)
 
 ```sh
-pip install git+https://github.com/achimgaedke/py-aws-vault-auth.git
+pip install -U git+https://github.com/achimgaedke/py-aws-vault-auth.git
 ```
 
 ## Project Scope
@@ -119,14 +130,15 @@ To avoid too many password manager input dialogues, have a look at [the
 
 ## Project Maturity
 
-**Please** star this repository if you like it or use the issue
-tracker if you have some feedback.
+**Please** star this [repository](https://github.com/achimgaedke/py-aws-vault-auth)
+if you like it or use the [issue-tracker](https://github.com/achimgaedke/py-aws-vault-auth/issues)
+to share some feedback.
 
 This project is born out of need for a smoother integration of devops tools/requirements
 with data-science tools. At the moment, it is simply factoring out some code I use
 privately.
 
-The project is developed on MacOS, python-3.11 - I will test it with older versions later.
+The project is developed on MacOS, python-3.11 - I will test it with other versions later.
 
 Yes, the thread-based polling of `stderr` is kind of awkward. Once upon a time
 this was the most portable way of waiting on output - or it was 6 years ago.

@@ -1,13 +1,13 @@
+from .utils import non_block_read, CHAR_CODE
 import json
 import subprocess
 import sys
 
 AWS_VAULT_CMD = "aws-vault"
 
-from .utils import non_block_read, CHAR_CODE
 
 def input_prompt(message):
-    return input(message)
+    return input(message + "\n")
 
 
 def stderr_message(message):
@@ -20,9 +20,9 @@ def to_boto_auth(aws_vault_credentials):
     `boto3.Client` parameter values.
     """
     return {
-        "aws_access_key_id" : aws_vault_credentials["AccessKeyId"],
-        "aws_secret_access_key" : aws_vault_credentials["SecretAccessKey"],
-        "aws_session_token" : aws_vault_credentials["SessionToken"]        
+        "aws_access_key_id": aws_vault_credentials["AccessKeyId"],
+        "aws_secret_access_key": aws_vault_credentials["SecretAccessKey"],
+        "aws_session_token": aws_vault_credentials["SessionToken"]
     }
 
 
@@ -32,9 +32,25 @@ def to_s3fs_auth(aws_vault_credentials):
     `s3fs.S3Filesystem` parameter values.
     """
     return {
-        "key" : aws_vault_credentials["AccessKeyId"],
-        "secret" : aws_vault_credentials["SecretAccessKey"],
-        "token" : aws_vault_credentials["SessionToken"]        
+        "key": aws_vault_credentials["AccessKeyId"],
+        "secret": aws_vault_credentials["SecretAccessKey"],
+        "token": aws_vault_credentials["SessionToken"]
+    }
+
+
+def to_environ_auth(aws_vault_credentials):
+    """
+    Convert the return value of `authenticate(..., return_as=None)` to
+    values suitable for `os.environ`.
+    """
+    # aws-vault also sets
+    # AWS_VAULT, AWS_DEFAULT_REGION, AWS_REGION
+    return {
+        "AWS_ACCESS_KEY_ID": aws_vault_credentials["AccessKeyId"],
+        "AWS_SECRET_ACCESS_KEY": aws_vault_credentials["SecretAccessKey"],
+        "AWS_SESSION_TOKEN": aws_vault_credentials["SessionToken"],
+        "AWS_SECURITY_TOKEN": aws_vault_credentials["SessionToken"],
+        "AWS_SESSION_EXPIRATION": aws_vault_credentials["Expiration"],
     }
 
 
@@ -54,7 +70,7 @@ def authenticate(profile,
 
     This function adds the prompt method `python` to loop any dialgoues through
     and uses the `terminal` under the hood.
-    
+
     The authentication is returned as dictionary (i.e. not set as environment
     variables) so multiple profiles can be used easily within one python process.
 
@@ -68,14 +84,17 @@ def authenticate(profile,
         (e.g. `"python"`, `"osascript"`, `"kdialog"`, `"terminal"`)
     :type prompt: str
     :param return_as: (Optional) The format of authentication data dict
-        (e.g. `"boto"`, `"s3fs"` or `None`)
+        (e.g. `"boto"`, `"environ"`, `"s3fs"` or `None`)
     :param aws_vault_cmd: name and location of the `aws-vault` command
     :type aws_vault_cmd: str
     :param kwargs: any other arguments will be added as key value pairs to
         the aws-vault arguments, e.g. `region="ap-southeast-2"`, `duration=8h`.
+        If the value is `None`, no value is added... e.g. `no-session=None`.
 
     :returns: the authentication
     :rtype: dict[str,str]
+
+    :raises: subprocess.CalledProcessError
     """
 
     if aws_vault_cmd is None:
@@ -85,19 +104,23 @@ def authenticate(profile,
         kwargs = {**kwargs, "prompt": "terminal"}
     else:
         kwargs = {**kwargs, "prompt": prompt}
-    
+
     aws_vault_args = []
     for k, v in kwargs.items():
-        aws_vault_args.extend([
-            f"--{k.replace('_', '-')}",
-            v])
+        if v is None:
+            aws_vault_args.append(
+                f"--{k.replace('_', '-')}")
+        else:
+            aws_vault_args.extend([
+                f"--{k.replace('_', '-')}",
+                v])
 
     aws_vault_process = subprocess.Popen(
         [aws_vault_cmd, "exec",
          *aws_vault_args,
          "--json",
-        profile,
-        "--", "exit 0"],
+         profile,
+         "--", "exit 0"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -130,7 +153,8 @@ def authenticate(profile,
                     # now show a prompt & get the result
                     prompt_text = stderr_stream_read.get_text()
                     response = input_prompt(prompt_text)
-                    aws_vault_process.stdin.write((response+"\n").encode(encoding=CHAR_CODE)) 
+                    aws_vault_process.stdin.write(
+                        (response+"\n").encode(encoding=CHAR_CODE))
 
         stderr_stream_read.join()
         stderr_lines = stderr_stream_read.get_text()
@@ -159,6 +183,8 @@ def authenticate(profile,
         return to_boto_auth(aws_vault_credentials)
     elif return_as == "s3fs":
         return to_s3fs_auth(aws_vault_credentials)
+    elif return_as in ["env", "environ"]:
+        return to_environ_auth(aws_vault_credentials)
     elif return_as in [None, ""]:
         return aws_vault_credentials
 
