@@ -65,26 +65,23 @@ Just add the credentials to the environment:
 
 ```python3
 environ_auth = py_aws_vault_auth.authenticate("DataScience", return_as="environ")
-import os
-os.environ.update(environ_auth)
+import os, subprocess
+subprocess.call(
+    ["aws", "s3", "ls", "my-bucket"],
+    env=os.environ | environ_auth  # for python >= 3.9
+    # env={**os.environ, **environ_auth}  # for python<3.9
+)
 ```
 
 ## Credentials Handling
 
-Without specifying `return_as` the function `authenticate` returns directly
-what `aws-vault exec --json` produces as a python `dict`.
+Without specifying `return_as` the function `authenticate` returns all
+environment variables starting with `AWS_` as seen by the subprocess
+started by aws-vault - that includes credentials, their expiration time
+and the region for the profile.
 
-```pytnon
-{'Version': 1,
- 'AccessKeyId': 'XXXXXXXXX',
- 'SecretAccessKey': 'YYYYYYYYYY',
- 'SessionToken': 'ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ',
- 'Expiration': '2023-02-09T23:18:32Z'}
- ```
-
-Conveniently that contains also the `Expiration` time. With `python>=3.11`
-the expiration time can be parsed with `datetime.datetime.fromisoformat`,
-otherwise use `dateutil.parser.isoparse`.
+The expiration time can be parsed with `datetime.datetime.fromisoformat`
+when using `python>=3.11`, otherwise use `dateutil.parser.isoparse`.
 
 The functions `to_boto_auth`, `to_environ_auth` and `to_s3fs_auth` create the
 relevant authentication parameters. These can be imported from `py_aws_vault_auth`

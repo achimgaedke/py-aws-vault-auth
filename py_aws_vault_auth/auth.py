@@ -5,6 +5,19 @@ import sys
 
 AWS_VAULT_CMD = "aws-vault"
 
+AWS_ENV_VARS = ["AWS_ACCESS_KEY_ID",
+                "AWS_SECRET_ACCESS_KEY",
+                "AWS_SESSION_TOKEN",
+                "AWS_SECURITY_TOKEN",
+                "AWS_REGION",
+                "AWS_DEFAULT_REGION",
+                "AWS_VAULT",
+                "AWS_SESSION_EXPIRATION",
+                "AWS_CREDENTIAL_EXPIRATION",
+                ]
+"""
+Names of environment variables expected.
+"""
 
 def input_prompt(message):
     return input(message + "\n")
@@ -20,9 +33,10 @@ def to_boto_auth(aws_vault_credentials):
     `boto3.Client` parameter values.
     """
     return {
-        "aws_access_key_id": aws_vault_credentials["AccessKeyId"],
-        "aws_secret_access_key": aws_vault_credentials["SecretAccessKey"],
-        "aws_session_token": aws_vault_credentials["SessionToken"]
+        "aws_access_key_id": aws_vault_credentials["AWS_ACCESS_KEY_ID"],
+        "aws_secret_access_key": aws_vault_credentials["AWS_SECRET_ACCESS_KEY"],
+        "aws_session_token": aws_vault_credentials["AWS_SESSION_TOKEN"],
+        "region_name": aws_vault_credentials["AWS_REGION"],
     }
 
 
@@ -32,9 +46,10 @@ def to_s3fs_auth(aws_vault_credentials):
     `s3fs.S3Filesystem` parameter values.
     """
     return {
-        "key": aws_vault_credentials["AccessKeyId"],
-        "secret": aws_vault_credentials["SecretAccessKey"],
-        "token": aws_vault_credentials["SessionToken"]
+        # no region here
+        "key": aws_vault_credentials["AWS_ACCESS_KEY_ID"],
+        "secret": aws_vault_credentials["AWS_SECRET_ACCESS_KEY"],
+        "token": aws_vault_credentials["AWS_SESSION_TOKEN"]
     }
 
 
@@ -42,15 +57,12 @@ def to_environ_auth(aws_vault_credentials):
     """
     Convert the return value of `authenticate(..., return_as=None)` to
     values suitable for `os.environ`.
+
+    This function makes sure only expected `AWS_` variables are set.
     """
-    # aws-vault also sets
-    # AWS_VAULT, AWS_DEFAULT_REGION, AWS_REGION
     return {
-        "AWS_ACCESS_KEY_ID": aws_vault_credentials["AccessKeyId"],
-        "AWS_SECRET_ACCESS_KEY": aws_vault_credentials["SecretAccessKey"],
-        "AWS_SESSION_TOKEN": aws_vault_credentials["SessionToken"],
-        "AWS_SECURITY_TOKEN": aws_vault_credentials["SessionToken"],
-        "AWS_SESSION_EXPIRATION": aws_vault_credentials["Expiration"],
+        k: aws_vault_credentials[k] for k in AWS_ENV_VARS
+        if k in aws_vault_credentials
     }
 
 
@@ -115,12 +127,15 @@ def authenticate(profile,
                 f"--{k.replace('_', '-')}",
                 v])
 
+    # don't use `--json`, but extract from environment
+    # so we get the AWS region as well
     aws_vault_process = subprocess.Popen(
         [aws_vault_cmd, "exec",
          *aws_vault_args,
-         "--json",
          profile,
-         "--", "exit 0"],
+         "--",
+         sys.executable, "-c",
+         "import json, os, sys; json.dump({k: v for k, v in os.environ.items() if k.startswith('AWS_')}, sys.stdout)"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -177,7 +192,8 @@ def authenticate(profile,
             stderr=stderr_data,
             output=stdout_data,
         )
-    aws_vault_credentials = json.loads(stdout_data)
+    aws_vault_credentials = {k: v for k in json.loads(stdout_data).items()
+                             if k in AWS_ENV_VARS}
 
     if return_as in ["boto", "boto3"]:
         return to_boto_auth(aws_vault_credentials)
