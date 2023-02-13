@@ -5,6 +5,7 @@ import sys
 import warnings
 
 from .utils import non_block_read, CHAR_CODE
+from .prompts import input_prompt
 
 
 AWS_VAULT_CMD = "aws-vault"
@@ -33,10 +34,6 @@ AWS_VAULT_EXEC_PROCESS = [
 ]
 
 
-def input_prompt(message):
-    return input(message + "\n")
-
-
 def stderr_message(message):
     print(message, file=sys.stderr, end="")
 
@@ -44,7 +41,7 @@ def stderr_message(message):
 def to_boto_auth(aws_vault_credentials):
     """
     Convert the return value of ``authenticate(..., return_as=None)`` to
-    `boto3.Client` parameter values.
+    ``boto3.Client`` parameter values.
     """
     return {
         "aws_access_key_id": aws_vault_credentials["AWS_ACCESS_KEY_ID"],
@@ -57,7 +54,7 @@ def to_boto_auth(aws_vault_credentials):
 def to_s3fs_auth(aws_vault_credentials):
     """
     Convert the return value of ``authenticate(..., return_as=None)`` to
-    `s3fs.S3Filesystem` parameter values.
+    ``s3fs.S3Filesystem`` parameter values.
     """
     return {
         # no region here
@@ -70,9 +67,9 @@ def to_s3fs_auth(aws_vault_credentials):
 def to_environ_auth(aws_vault_credentials):
     """
     Convert the return value of ``authenticate(..., return_as=None)`` to
-    values suitable for `os.environ`.
+    values suitable for ``os.environ``.
 
-    This function makes sure only expected ``AWS_`` variables are set.
+    This function makes sure only expected environment variables are set.
     """
     return {
         k: aws_vault_credentials[k] for k in AWS_ENV_VARS
@@ -103,29 +100,33 @@ def authenticate(profile,
     variables) so multiple profiles can be used easily within one python
     process.
 
-    Use `return_as` to get parameters immediately usable with boto, pandas or
-    use the convenience functions ``to_boto_auth`` and ``to_s3fs_auth`` to
-    convert the original `aws-vault` credential values.
+    Use `return_as` to get parameters immediately usable with boto, pandas.
+
+    Alternatively do not specify `return_as` and use the functions
+    ``to_env_auth``, ``to_boto_auth`` and ``to_s3fs_auth`` to convert the
+    result of this function into the formats desired.
 
     :param profile: The name of the AWS profile
     :type profile: str
     :param prompt: (Optional) The mechanism to use to prompt for MFA token
         (e.g. ``"python"``, ``"osascript"``, ``"kdialog"``, ``"terminal"``)
-    :type prompt: str
+        If a function is given, it takes a message and returns the input, just
+        like the python built-in function ``input``.
+    :type prompt: str,func
     :param return_as: (Optional) The format of authentication data dict
         (e.g. ``"boto"``, ``"environ"``, ``"s3fs"`` or ``None``)
-    :param aws_vault_cmd: name and location of the `aws-vault` command
+    :param aws_vault_cmd: path/name of the ``aws-vault`` command
     :type aws_vault_cmd: str
     :param aws_vault_env: (Optional) Additional environment variables to
         pass to the `aws-vault` process, e.g. `to configure authentication
         <https://github.com/99designs/aws-vault/blob/master/USAGE.md#environment-variables>`_
     :type aws_vault_env: dict[str,str]
-    :param kwargs: any other arguments will be added as key value pairs to
+    :param kwargs: any other arguments will be added as key-value pairs to
         the aws-vault arguments, e.g. ``region="ap-southeast-2"``,
-        ``duration=8h``. If the value is ``None``, no value is added... e.g.
-        ``no-session=None``.
+        ``duration=8h``. Set the value to ``None`` for key only arguments,
+        i.e. ``no_session=None`` results in ``--no-session``.
 
-    :returns: the authentication
+    :returns: the authentication credentials
     :rtype: dict[str,str]
 
     :raises: subprocess.CalledProcessError
@@ -139,20 +140,24 @@ def authenticate(profile,
     else:
         aws_vault_env = {**os.environ, **aws_vault_env}
 
+    prompt_function = None
+
     if prompt is None:
         prompt = aws_vault_env.get("AWS_VAULT_PROMPT", "python")
 
-    if prompt == "python":
-        kwargs = {**kwargs, "prompt": "terminal"}
-    else:
-        kwargs = {**kwargs, "prompt": prompt}
+    if hasattr(prompt, "__call__"):
+        prompt_function = prompt
+    elif prompt == "python":
+        prompt_function = input_prompt
 
-    if ("AWS_VAULT_PROMPT" in aws_vault_env and
-            prompt != aws_vault_env["AWS_VAULT_PROMPT"]):
-        # this would override the --prompt parameter
-        warnings.warn(
-            "removing `AWS_VAULT_PROMPT` from environment for `aws-vault`")
+    # have prompt only in the command arguments
+    # ignore potential previous inconsistencies
+    try:
         del aws_vault_env["AWS_VAULT_PROMPT"]
+    except KeyError:
+        pass
+
+    kwargs = {**kwargs, "prompt": prompt}
 
     if "--json" in kwargs:
         # don't use `--json`, but extract from environment
@@ -186,7 +191,7 @@ def authenticate(profile,
 
     stderr_data = ""
 
-    if prompt == "python":
+    if prompt_function is not None:
         # use threaded read, emulating non-blocking read
         # internally this seems to be a busy wait loop... sorry!
         stderr_stream_read = non_block_read(aws_vault_process.stderr)
@@ -210,7 +215,7 @@ def authenticate(profile,
                 if stderr_stream_read.read_buffer.startswith(b"Enter "):
                     # now show a prompt & get the result
                     prompt_text = stderr_stream_read.get_text()
-                    response = input_prompt(prompt_text)
+                    response = prompt_function(prompt_text)
                     aws_vault_process.stdin.write(
                         (response+"\n").encode(encoding=CHAR_CODE))
 
