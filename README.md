@@ -1,7 +1,7 @@
 # py-aws-vault-auth
 
 This is a wrapper for the [`aws-vault` command](https://github.com/99designs/aws-vault).<br/>
-This is **not** an interface to the AWS (glacier) vault.
+This is **not** an interface to the AWS (glacier) vault or AWS secrets manager.
 
 ## Introduction
 
@@ -17,7 +17,7 @@ c = boto3.client("s3", **boto_auth)
 c.list_objects_v2(Bucket="your-bucket")
 ```
 
-In a Jupyterlab notebook this looks like this
+In a [Jupyterlab notebook](demo.ipynb) this looks like this
 
 ![py_aws_vault_auth dialogue in Jupyterlab notebook](doc/MFA_JupyterLabNotebook.png)
 
