@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import subprocess
@@ -36,6 +37,29 @@ AWS_VAULT_EXEC_PROCESS = [
 
 def stderr_message(message):
     print(message, file=sys.stderr, end="")
+
+
+def expiration_time(aws_vault_credentials, timezone=None):
+    """
+    Return the credentials expiration time mapped to the (local) timezone
+
+    Requires either python>=3.11 or the ``dateutil`` package.
+    
+    :param aws_vault_credentials: credentials returned from ``authenticate``
+    :type aws_vault_credentials: dict[str,str]
+    :param timezone: Timezone to map the expiration time to, defaults
+        to the local timezone.
+    :type aws_vault_credentials: datetime.timezone
+
+    :rtype: datetime.datetime
+    """
+    try:
+        return datetime.datetime.fromisoformat(aws_vault_credentials["AWS_SESSION_EXPIRATION"]).astimezone(timezone)
+    except ValueError:
+        pass
+
+    import dateutil.parser
+    return dateutil.parser.isoparse(expiration_time).astimezone(timezone)
 
 
 def to_boto_auth(aws_vault_credentials):
@@ -103,7 +127,7 @@ def authenticate(profile,
     Use `return_as` to get parameters immediately usable with boto, pandas.
 
     Alternatively do not specify `return_as` and use the functions
-    ``to_env_auth``, ``to_boto_auth`` and ``to_s3fs_auth`` to convert the
+    ``to_environ_auth``, ``to_boto_auth`` and ``to_s3fs_auth`` to convert the
     result of this function into the formats desired.
 
     :param profile: The name of the AWS profile
@@ -146,9 +170,9 @@ def authenticate(profile,
         prompt = aws_vault_env.get("AWS_VAULT_PROMPT", "python")
 
     if hasattr(prompt, "__call__"):
-        prompt_function = prompt
+        prompt, prompt_function = "terminal", prompt
     elif prompt == "python":
-        prompt_function = input_prompt
+        prompt, prompt_function = "terminal", input_prompt
 
     # have prompt only in the command arguments
     # ignore potential previous inconsistencies
