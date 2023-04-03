@@ -1,6 +1,6 @@
 # py-aws-vault-auth
 
-This is a wrapper for the [`aws-vault` command](https://github.com/99designs/aws-vault).<br/>
+This is a wrapper for the [`aws-vault` command](https://github.com/99designs/aws-vault).  
 This is **not** an interface to the AWS (glacier) vault or AWS secrets manager.
 
 ## Introduction
@@ -25,8 +25,8 @@ or in a VSCode notebook
 
 ![py_aws_vault_auth dialogue in VSCode notebook](doc/MFA_VSCodeNotebook.png)
 
-by virtue of a context-adjusted version of the builtin [`input` function](
-https://docs.python.org/3/library/functions.html#input) - these are
+by virtue of a context-adjusted version of the builtin [`input` function
+](https://docs.python.org/3/library/functions.html#input) - these are
 auto-magically provided by Jupyterlab and VSCode.
 
 ## S3 access
@@ -61,27 +61,33 @@ pandas.read_csv("s3://my-bucket/my_file",
 )
 ```
 
-Just add the credentials to the environment:
+Just add the credentials to the environment of a supbrpocess
 
 ```python3
 environ_auth = py_aws_vault_auth.authenticate("DataScience", return_as="environ")
 import os, subprocess
 subprocess.call(
     ["aws", "s3", "ls", "my-bucket"],
-    env=os.environ | environ_auth  # for python >= 3.9
-    # env={**os.environ, **environ_auth}  # for python<3.9
+    env=os.environ | environ_auth
 )
+```
+
+or simply update the running process environment with the (fresh) credentials
+
+```python3
+environ_auth = py_aws_vault_auth.authenticate("DataScience", return_as="environ")
+import os
+os.environ.update(environ_auth)
 ```
 
 ## Credentials Handling
 
 Without specifying `return_as` the function `authenticate` returns all
-environment variables starting with `AWS_` as seen by the subprocess
-started by aws-vault - that includes credentials, their expiration time
-and the region for the profile.
+environment variables starting with `AWS_` as seen set by aws-vault - that
+includes credentials, their expiration time and the region of the profile.
 
-The expiration time can be parsed with `datetime.datetime.fromisoformat`
-when using `python>=3.11`, otherwise use `dateutil.parser.isoparse`.
+The expiration time can be converted to a `datetime` object using
+`py_aws_vault.expiration_time` (this requires `dateutil` for python<3.11).
 
 The functions `to_boto_auth`, `to_environ_auth` and `to_s3fs_auth` create the
 relevant authentication parameters. These can be imported from `py_aws_vault_auth`
@@ -113,7 +119,7 @@ This project does:
 * return the AWS credentials directly usable with popular data-science tools
 * request the MFA token via python's input context, i.e. the `input` built-in function
 * aims to work in Linux/MacOS (and hopefully MS Windows) wo extra dependencies and
-  supportin a variety of python3 versions
+  supporting a variety of python3 versions
 
 If you prefer another window poping up somewhere, you can use `prompt="osascript"`
 (with MacOS) or similar. This won't use python's `input` function.
@@ -136,7 +142,7 @@ This project is born out of need for a smoother integration of devops tools/requ
 with data-science tools. At the moment, it is simply factoring out some code I use
 privately.
 
-The project is developed on MacOS, python-3.11 - I will test it with other versions later.
+The project is developed on MacOS, python-3.11 and tested on Linux, python-3.9.
 
 Yes, the thread-based polling of `stderr` is kind of awkward. Once upon a time
 this was the most portable way of waiting on output - or it was 6 years ago.
