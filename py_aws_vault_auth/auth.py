@@ -57,9 +57,14 @@ def expiration_time(aws_vault_credentials, timezone=None):
 
     :rtype: datetime.datetime
     """
+    if "AWS_CREDENTIAL_EXPIRATION" in aws_vault_credentials:
+        expiration_time = aws_vault_credentials["AWS_CREDENTIAL_EXPIRATION"]
+    else:
+        expiration_time = aws_vault_credentials["AWS_SESSION_EXPIRATION"]
+
     try:
         return datetime.datetime.fromisoformat(
-            aws_vault_credentials["AWS_SESSION_EXPIRATION"]
+            expiration_time
         ).astimezone(timezone)
     except ValueError:
         pass
