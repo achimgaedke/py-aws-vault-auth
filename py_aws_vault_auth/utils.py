@@ -31,8 +31,13 @@ class non_block_read(threading.Thread):
         return buffer.decode(encoding=CHAR_CODE)
 
     def run(self):
-        next_char = self.stream.read(1)
-        while next_char:
-            with self.buffer_lock:
-                self.read_buffer += next_char
+        try:
             next_char = self.stream.read(1)
+            while next_char:
+                with self.buffer_lock:
+                    self.read_buffer += next_char
+                next_char = self.stream.read(1)
+        except OSError as e:
+            # if process ends wo closing the stream
+            if e.errno != 5:
+                raise
