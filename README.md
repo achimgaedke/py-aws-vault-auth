@@ -29,7 +29,7 @@ by virtue of a context-adjusted version of the builtin [`input` function
 ](https://docs.python.org/3/library/functions.html#input) - these are
 auto-magically provided by Jupyterlab and VSCode.
 
-## S3 access
+## Credentials for S3 access
 
 That's probably the most prominent data-science usecase...
 
@@ -60,6 +60,8 @@ pandas.read_csv("s3://my-bucket/my_file",
                 storage_options=s3fs_auth
 )
 ```
+
+## Credentials as environment variables
 
 Just add the credentials to the environment of a supbrpocess
 
@@ -136,7 +138,7 @@ To avoid too many password manager input dialogues, have a look at [the
 
 **Please** star this [repository](https://github.com/achimgaedke/py-aws-vault-auth)
 if you like it or use the [issue-tracker](https://github.com/achimgaedke/py-aws-vault-auth/issues)
-to share some feedback.
+to share some feedback (bug reports or use cases).
 
 This project is born out of need for a smoother integration of devops tools/requirements
 with data-science tools. At the moment, it is simply factoring out some code I use
@@ -144,8 +146,8 @@ privately.
 
 The project is developed on MacOS, python-3.11 and tested on Linux, python-3.9.
 
-Yes, the thread-based polling of `stderr` is kind of awkward. Once upon a time
-this was the most portable way of waiting on output - or it was 6 years ago.
+Yes, the thread-based polling of the terminal communication is kind of awkward. Once
+upon a time this was the most portable way of waiting on output - or it was 6 years ago.
 I might revisit this part another time, as OS and backwards-compatibility got
 better. (I'm aware of `select`, `async`, or setting streams to non-blocking mode)
 
